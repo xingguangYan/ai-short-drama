@@ -12,6 +12,10 @@ VOICES = {
     "店员": ("zh-CN-YunjianNeural", "+0%", "-3Hz"),
     "理货员": ("zh-CN-YunjianNeural", "+0%", "-3Hz"),
     "路人甲": ("zh-CN-YunyangNeural", "+0%", "+0Hz"),
+    "苗苗": ("zh-CN-XiaoxuanNeural", "+0%", "+0Hz"),
+    "女声": ("zh-CN-XiaoxiaoNeural", "+0%", "+0Hz"),
+    "女人": ("zh-CN-XiaoxiaoNeural", "+0%", "+0Hz"),
+    "老妇": ("zh-CN-XiaoxiaoNeural", "+0%", "-3Hz"),
 }
 
 def probe_duration(path):

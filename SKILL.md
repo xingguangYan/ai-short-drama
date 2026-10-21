@@ -36,4 +36,4 @@ description: 从《剧本.md》批量生产竖屏短剧/漫剧成片（edge-tts 
 
 ## 部署
 
-本技能已同步到 GitHub（仓库见 `references/deploy.md`）。项目级脚本主副本在项目的 `.scripts/`，技能内 `scripts/` 是可复制的通用版（`DRAMA_ROOT` 环境变量切项目）。
+仓库与部署说明见 `references/deploy.md`（本地 git 仓库已建好，首次推送需要作者提供 GitHub 令牌）。项目级脚本主副本在项目的 `.scripts/`，技能内 `scripts/` 是可复制的通用版（`DRAMA_ROOT` 环境变量切项目）。

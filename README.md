@@ -33,6 +33,10 @@ Skill for AI short drama batch production with MiniMax H3
 
 ---
 
+## 案例
+
+2 【重回美食街，靠一碗面让对手跪 - 此星光明 | 小红书 - 你的生活兴趣社区】 😆 GRdD9qQMa05anaG 😆 https://www.xiaohongshu.com/discovery/item/6ad7474c0000000031000ec7?source=webshare&xhsshare=pc_web&xsec_token=ABeILbtxDcLL9F_xKoCb-hYeQ51CeRwmaRtRRMSQmwNwE=&xsec_source=pc_share
+
 ## 🧭 它在你工作流里的位置
 
 ```

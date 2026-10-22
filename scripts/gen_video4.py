@@ -5,8 +5,8 @@
 import json, os, sys, time, hashlib, urllib.request, urllib.parse, uuid
 
 BASE = "http://127.0.0.1:8188"
-WF_PATH = os.environ.get("COMFY_WF", r"D:\comfyUI\workflows\minimax_h3_r2v_native.json")  # 工作流路径可用环境变量覆盖
-ROOT = os.environ.get("DRAMA_ROOT", r"D:\个人资料\网文创作\末日求生_短剧")  # 项目根可用环境变量覆盖
+WF_PATH = r"D:\comfyUI\workflows\minimax_h3_r2v_native.json"
+ROOT = r"D:\个人资料\网文创作\末日求生_短剧"
 
 def post_json(path, payload):
     data = json.dumps(payload).encode("utf-8")
@@ -82,7 +82,7 @@ def run_task(wf, t):
         raise RuntimeError("validate: " + json.dumps(resp["error"], ensure_ascii=False)[:500])
     pid = resp["prompt_id"]
     waited = 0
-    while waited < 5400:
+    while waited < 10800:
         h = get_json("/history/" + pid, timeout=30)
         if h and pid in h:
             entry = h[pid]
@@ -127,3 +127,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

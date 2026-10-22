@@ -1,0 +1,211 @@
+# AI Short Drama
+
+> **A one-stop batch production pipeline from `剧本.md` to vertical video.**
+> Five-stage automation · MiniMax H3 native audio-video · edge-tts voice driving · ComfyUI local rendering
+
+---
+
+## 📛 Tech Stack Badges
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![ComfyUI](https://img.shields.io/badge/ComfyUI-0.30.0%2B-6B4FBB?style=flat-square)
+![MiniMax H3](https://img.shields.io/badge/MiniMax_H3-R2V_Native-FF6B35?style=flat-square)
+![edge-tts](https://img.shields.io/badge/edge--tts-Neural_Voices-0078D4?style=flat-square&logo=microsoftedge&logoColor=white)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-EBU_R128-007808?style=flat-square&logo=ffmpeg&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-lightgrey?style=flat-square)
+![GPU](https://img.shields.io/badge/GPU-RTX_3060%2B-76B900?style=flat-square&logo=nvidia&logoColor=white)
+![Output](https://img.shields.io/badge/Output-1088%C3%971920%20%7C%2024fps-black?style=flat-square)
+![Status](https://img.shields.io/badge/Status-v1.0_Active-brightgreen?style=flat-square)
+
+---
+
+## 📖 What Is This
+
+`ai-short-drama` is a Codex Skill built for **batch production of AI vertical short dramas / motion comics**. Its input is deliberately minimal — one `剧本.md` per episode that follows the format contract, plus that episode's five-view character sheets and scene boards. Its output is equally explicit — a single **1088×1920, 24fps vertical MP4 with native character speech**.
+
+This project does not try to be a universal video generator. Its boundary is hard-coded in SKILL.md: **from an existing script and assets to a finished MP4**. Pure text writing is out of scope — that belongs to the `story-*` skills. What it solves is the most tedious, most repetitive, and most fragile part of the production chain: the part where episode 47's third scene ends up with different lighting than episode 12, and the whole series quietly falls apart. **It takes what is already finalized and renders it, stably, in batches.**
+
+The project landed its first v1 commit on **October 22, 2026**, followed by several iterations — deployment doc fixes and a long-shot render timeout raised from the default to 3 hours. The commit rhythm suggests a tool grown out of real production needs, not a framework written first and looking for a use case later.
+
+---
+
+## 🧭 Where It Fits In Your Workflow
+
+```
+Web novel / fiction / story
+       │
+       ▼
+  story-* skills  ──→  剧本.md + five-view sheets + scene boards
+       │
+       ▼
+  ai-short-drama  ──→  成片/EPxx_成片.mp4
+```
+
+SKILL.md states it plainly: "no pure text writing (that's the `story-*` skills' job); this skill's boundary is from existing scripts and assets to a finished MP4." That means before entering this pipeline, you must already know who says what, where, and when — and you must already have the five-view sheets (full body, front, left profile, right profile, back) and scene boards ready. **Script first** is not a suggestion; it's an iron rule. Without `剧本.md`, scene boards, and five-view sheets, do not start rendering.
+
+---
+
+## 🏗️ The Five-Stage Pipeline
+
+Every episode runs through five stages in a fixed order. Each stage has its own Python script, its artifacts are written to disk, and each can be inspected or re-run independently.
+
+### Stage 1 — Script Parsing
+
+**Script**: `scripts/parse_vo.py EPxx`
+
+Extracts dialogue and voice-over from `剧本.md` and writes `.scripts/vo_EPxx.json`. The format contract is a scene marker `## EPxx-SC001` containing "location · time", dialogue written as `角色（说明）：内容`, and VO written as `[VO] 角色：内容`. This stage calls no model at all — it is pure structured parsing. Fast, deterministic, and the resulting JSON can be opened directly to verify nothing was dropped or split incorrectly.
+
+### Stage 2 — TTS Voiceover
+
+**Script**: `scripts/gen_tts.py EPxx`
+
+Synthesizes audio per character voice using `edge-tts`, producing `制作成果/audio/00N_角色.mp3` and `voice_list.json`. There is a design point here that is easy to misread: **the TTS exists solely as reference audio for H3** to drive character lip movement. It never enters the final video. The voice you hear in the finished MP4 is the native audio track H3 produces during video generation — not this TTS output.
+
+`edge-tts` calls Microsoft Edge's online neural voice service. No API key required; supports natural Chinese pronunciation and multiple languages. The project includes a dedicated patch for voice mapping, covering the "煤球/回声体 five-view mapping and female/child voice" sync fix.
+
+### Stage 3 — Shot Planning
+
+**Script**: `scripts/plan_shots4.py EPxx`
+
+One long take per scene. All dialogue in that scene is merged into `merged_EPxx-SCxxx.wav` as reference audio, paired with five-view sheets and scene boards as dual reference images, producing `shots_EPxx.json`. The "one scene, one take" choice directly determines the granularity and duration constraints of downstream rendering: 5–12 seconds per shot, no shorter, and longer is not recommended.
+
+### Stage 4 — H3 Rendering
+
+**Script**: `scripts/gen_video4.py EPxx`
+
+The heaviest step in the entire pipeline. It calls the local ComfyUI `minimax_h3_r2v_native.json` workflow to generate **video with native character speech**, shot by shot. MiniMax H3 is an open-weight omni-modal video model that outputs picture and audio track in the same generation pass, with built-in lip sync — so the speech in the final video matches the mouth movements.
+
+Two hard constraints apply: **frame count must be a multiple of 17 and ≥124**, at 24fps. Reference images must be passed as a `ref_images: [[id,0],...]` list — the upload endpoint must not include an extra `image` text field, or it returns 500. The timeout in `gen_video4.py` was recently raised to 3 hours specifically to keep long-shot renders stable.
+
+### Stage 5 — Assembly
+
+**Script**: `scripts/assemble6.py EPxx`
+
+Hard cuts across roughly nine shots, **no black frames**, keeping only each shot's native character speech, per-shot EBU loudness normalization against the reference film, output to `成片/EPxx_成片.mp4`.
+
+"Keep only the shot's native speech" is the hardest rule in the pipeline: the audio track H3 generates *is* the character speaking. Never layer TTS on top, never burn in bottom subtitles, never overlay narration — **every line must sound exactly once**. The purpose is to eliminate the double-voice disaster where the mouth is saying A while the audio track is playing B.
+
+---
+
+## ⚡ Batch Runs: run_all and comfy_ctl
+
+Running five scripts manually per episode is possible, but the correct entry point for batch output is:
+
+```bash
+python scripts/run_all.py
+```
+
+It provides **ComfyUI health monitoring, resumable runs, and failure isolation**. If one episode or one shot fails, it will not drag down the whole batch; the next run resumes from the checkpoint instead of restarting from episode 1.
+
+If ComfyUI hangs or goes offline, restart it with:
+
+```bash
+python scripts/comfy_ctl.py
+```
+
+There is a very easy trap here: **you must restart with the `.venv` Python**. The standalone-env Python does not have torch installed, and a ComfyUI started with it will fail at model loading.
+
+---
+
+## 📋 Script Format Contract
+
+The pipeline depends on strict parsing of the script format. Each episode lives in one `剧本.md`, with scene markers in this shape:
+
+```
+## EP01-SC001  INT. CAFE - DAY
+```
+
+Dialogue:
+
+```
+林薇（低声）：你到底有没有看过那份合同？
+```
+
+VO:
+
+```
+[VO] 旁白：三天前，她还以为一切都在掌控之中。
+```
+
+The "INT/EXT · location · time" in the scene marker line is what shot planning uses to identify scenes. One wrong character and an entire scene can be silently dropped.
+
+---
+
+## 🖼️ Asset Requirements: Five-View Sheets and Scene Boards
+
+Five-view character sheet = **full body + front + left profile + right profile + back**. SKILL.md puts this in the iron rules for a reason: "to keep the character from deforming." H3's reference-to-video mode relies on multi-angle reference images to constrain character consistency across shots. Miss one angle and you give the model one more degree of freedom — which it usually spends on "the face changed" or "the clothes are the wrong color."
+
+The scene board is the spatial baseline for each scene. Shot planning sends the five-view sheets and scene board into H3 as dual reference images, so the board's composition, lighting, and color tone directly influence the final frame's mood.
+
+---
+
+## 🔧 Environment and Deployment
+
+The `references/` directory contains four documents, each with a clear division of labor:
+
+| File | Contents |
+|---|---|
+| `deploy.md` | Deployment steps and status notes |
+| `environment.md` | Concrete configuration for ComfyUI, workflows, and model paths |
+| `pipeline.md` | Detailed description of the five-stage pipeline |
+| `spec.md` | Script format and technical specifications |
+
+The deployment chain is: Python environment (`.venv` recommended) → `edge-tts` → ComfyUI 0.30.0+ → MiniMax H3 R2V workflow and model weights → FFmpeg (for assembly-stage encoding and loudness normalization). ComfyUI paths and workflow file locations are hard-coded in `references/environment.md` and must be updated when moving machines.
+
+The seven scripts under `scripts/` form the complete toolchain:
+
+| Script | Responsibility |
+|---|---|
+| `parse_vo.py` | Script parsing |
+| `gen_tts.py` | edge-tts voiceover |
+| `plan_shots4.py` | Shot planning |
+| `gen_video4.py` | H3 rendering |
+| `assemble6.py` | Final assembly |
+| `run_all.py` | Batch scheduling + resumable runs |
+| `comfy_ctl.py` | ComfyUI start/stop control |
+
+`agents/openai.yaml` is the Codex-side agent configuration that defines how this skill is recognized and invoked.
+
+---
+
+## ⚠️ Iron Rules and Troubleshooting
+
+SKILL.md concentrates the constraints most likely to cause failures into an "Iron Rules" section, each one corresponding to a real-world pitfall:
+
+**Rule 1: The final video keeps only the shot's native character speech.** Never layer TTS, never burn in bottom subtitles, never overlay narration. Every line sounds exactly once. Violating this produces double-voice audio where the lip sync no longer matches.
+
+**Rule 2: H3 frame count must be a multiple of 17 and ≥124.** 24fps, 5–12 seconds per shot. Wrong frame counts cause generation failures or abnormal output duration.
+
+**Rule 3: Reference images must be a `ref_images: [[id,0],...]` list.** The upload endpoint must not include an extra `image` text field, or it returns 500.
+
+**Rule 4: After a ComfyUI crash, restart with the `.venv` Python.** The standalone-env Python has no torch; restarting with it is like swapping in a car shell with no engine.
+
+**Rule 5: Script first.** Without `剧本.md`, scene boards, and five-view sheets, do not start rendering.
+
+---
+
+## 🧩 Who It's For, Who It's Not
+
+**For**: people already producing vertical short dramas / motion comics, with a relatively stable script workflow, an RTX GPU and a ComfyUI environment, who need to render "episodes N through N+10" in one go. The 80-episode *Doomsday Survival* series referenced in SKILL.md is a mature example, showing the pipeline has been validated on a long-running series.
+
+**Not for**: people who want to go from a one-line idea straight to a short drama (you need a script and assets first); people without a local GPU who don't want to maintain a ComfyUI environment; people who need free model switching rather than being locked to MiniMax H3.
+
+---
+
+## 📌 Version Status
+
+The project released **v1 on October 22, 2026**, with same-day fixes to the deployment doc, the voice mapping patch, and the long-shot render timeout. The timeout in `scripts/gen_video4.py` has been raised to 3 hours, and the status wording in `deploy.md` was corrected. This is an early tool still under active iteration — the README itself is a one-line placeholder, and the real specification details live in `SKILL.md` and the four documents under `references/`.
+
+---
+
+## 🔗 Related Links
+
+- **Repository**: [github.com/xingguangYan/ai-short-drama](https://github.com/xingguangYan/ai-short-drama)
+- **MiniMax H3 model**: [huggingface.co/MiniMaxAI/MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3)
+- **edge-tts**: [github.com/rany2/edge-tts](https://github.com/rany2/edge-tts)
+
+---
+
+*This document is based on the actual contents of the repository's SKILL.md, scripts/, and references/ directories, along with publicly available technical material on MiniMax H3 and edge-tts.*
